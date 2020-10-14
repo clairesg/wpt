@@ -1,5 +1,3 @@
-'use strict';
-
 // These tests rely on the User Agent providing an implementation of
 // the sms retriever.
 //
@@ -8,44 +6,29 @@
 // these tests the browser must be run with these options:
 // //   --enable-blink-features=MojoJS,MojoJSTest
 
-const Status = {};
+import {isChromiumBased} from '/resources/test-only-api.m.js';
 
-async function loadChromiumResources() {
-  const resources = [
-    '/gen/mojo/public/mojom/base/time.mojom-lite.js',
-    '/gen/third_party/blink/public/mojom/sms/webotp_service.mojom-lite.js',
-  ];
+let Provider;
 
-  await loadMojoResources(resources, true);
-  await loadScript('/resources/chromium/mock-sms-receiver.js');
-
-  Status.kSuccess = blink.mojom.SmsStatus.kSuccess;
-  Status.kTimeout = blink.mojom.SmsStatus.kTimeout;
-  Status.kCancelled = blink.mojom.SmsStatus.kCancelled;
-};
-
-async function create_sms_provider() {
-  if (typeof SmsProvider === 'undefined') {
-    if (isChromiumBased) {
-      await loadChromiumResources();
-    } else {
-      throw new Error('Mojo testing interface is not available.');
-    }
+async function createSmsProvider() {
+  if (!Provider && isChromiumBased) {
+    const {SmsProvider} =
+        await import('/resources/chromium/mock-sms-receiver.js');
+    Provider = SmsProvider;
   }
-  if (typeof SmsProvider === 'undefined') {
-    throw new Error('Failed to set up SmsProvider.');
-  }
-  return new SmsProvider();
+  if (!Provider)
+    throw new Error('Mojo testing interface is not available.');
+  return new Provider();
 }
 
-function receive() {
+export function receive() {
   throw new Error("expected to be overriden by tests");
 }
 
-function expect(call) {
+export function expect(call) {
   return {
     async andReturn(callback) {
-      const mock = await create_sms_provider();
+      const mock = await createSmsProvider();
       mock.pushReturnValuesForTesting(call.name, callback);
     }
   }
